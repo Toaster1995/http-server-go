@@ -17,6 +17,7 @@ func main() {
 		fmt.Println("Failed to bind to port 4221")
 		os.Exit(1)
 	}
+	defer l.Close()
 
 	connection, err := l.Accept()
 	if err != nil {
