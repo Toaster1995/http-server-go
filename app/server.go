@@ -12,7 +12,7 @@ type Request struct {
 	target      string
 	httpVersion string
 	header      map[string]string
-	body        []string
+	body        string
 }
 
 func main() {
@@ -49,6 +49,9 @@ func handleConn(l net.Listener) {
 			if targetParts[1] == "echo" {
 				length := len(targetParts[2])
 				connection.Write([]byte(fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", length, targetParts[2])))
+			} else if req.target == "/user-agent" {
+				length := len(req.header["user-agent"])
+				connection.Write([]byte(fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", length, req.header["user-agent"])))
 			} else if req.target == "/" {
 				connection.Write([]byte("HTTP/1.1 200 OK\r\n\r\n"))
 			} else {
@@ -71,22 +74,27 @@ func getRequest(conn net.Conn) (Request, error) {
 		return Request{}, fmt.Errorf("couldn`t read from connection: %w", err)
 	}
 
-	request := strings.Split(string(buffer), "\r\n")
-	reqLine := request[0]
-	headerBody := strings.Split(request[1], "\r\n\r\n")
-	reqParts := strings.Split(reqLine, " ")
+	request := strings.Split(string(buffer), "\r\n\r\n")
+	reqLineString := strings.Split(request[0], "\r\n")[0]
+	reqLine := strings.Split(reqLineString, " ")
+	header := strings.Split(request[0], "\r\n")[1:]
 
-	headerVars := strings.Split(headerBody[0], "\r\n")
+	fmt.Printf("reqLine: %v \n", header)
+	body := request[1]
+
+	fmt.Printf("body: %v \n", body)
+
 	headerValues := make(map[string]string)
-	for _, item := range headerVars {
-		v := strings.Split(item, ": ")
-		headerValues[v[0]] = v[1]
+	for i := 0; i < len(header); i++ {
+		v := strings.Split(header[i], ": ")
+		headerValues[strings.ToLower(v[0])] = v[1]
 	}
 
 	return Request{
-		method:      reqParts[0],
-		target:      reqParts[1],
-		httpVersion: reqParts[2],
+		method:      reqLine[0],
+		target:      strings.ToLower(reqLine[1]),
+		httpVersion: reqLine[2],
 		header:      headerValues,
+		body:        body,
 	}, nil
 }
