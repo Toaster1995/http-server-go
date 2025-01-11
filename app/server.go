@@ -43,17 +43,23 @@ func handleConn(l net.Listener) {
 			os.Exit(1)
 		}
 
-		targetParts := strings.Split(req.target, "/")
-		if targetParts[1] == "echo" {
-			length := len(targetParts[2])
-			fmt.Printf("Target: %v", targetParts[2])
-			connection.Write([]byte(fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", length, targetParts[2])))
-		} else if req.target == "/" {
-			connection.Write([]byte("HTTP/1.1 200 OK\r\n\r\n"))
-		} else {
+		switch req.method {
+		case "GET":
+			targetParts := strings.Split(req.target, "/")
+			if targetParts[1] == "echo" {
+				length := len(targetParts[2])
+				connection.Write([]byte(fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", length, targetParts[2])))
+			} else if req.target == "/" {
+				connection.Write([]byte("HTTP/1.1 200 OK\r\n\r\n"))
+			} else {
+				connection.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
+			}
+			connection.Close()
+		default:
 			connection.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
+			connection.Close()
 		}
-		connection.Close()
+
 	}
 }
 
