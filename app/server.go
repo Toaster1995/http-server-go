@@ -25,11 +25,8 @@ func main() {
 		os.Exit(1)
 	}
 	defer l.Close()
+	fmt.Printf("Listening on port 4221\n")
 
-	handleConn(l)
-}
-
-func handleConn(l net.Listener) {
 	for {
 		connection, err := l.Accept()
 		if err != nil {
@@ -37,32 +34,37 @@ func handleConn(l net.Listener) {
 			os.Exit(1)
 		}
 
-		req, err := getRequest(connection)
-		if err != nil {
-			fmt.Println("error creating request object: ", err.Error())
-			os.Exit(1)
-		}
+		go handleConn(connection)
+	}
+}
 
-		switch req.method {
-		case "GET":
-			targetParts := strings.Split(req.target, "/")
-			if targetParts[1] == "echo" {
-				length := len(targetParts[2])
-				connection.Write([]byte(fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", length, targetParts[2])))
-			} else if req.target == "/user-agent" {
-				length := len(req.header["user-agent"])
-				connection.Write([]byte(fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", length, req.header["user-agent"])))
-			} else if req.target == "/" {
-				connection.Write([]byte("HTTP/1.1 200 OK\r\n\r\n"))
-			} else {
-				connection.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
-			}
-			connection.Close()
-		default:
+func handleConn(connection net.Conn) {
+	defer connection.Close()
+
+	req, err := getRequest(connection)
+	if err != nil {
+		fmt.Println("error creating request object: ", err.Error())
+		os.Exit(1)
+	}
+
+	switch req.method {
+	case "GET":
+		targetParts := strings.Split(req.target, "/")
+		if targetParts[1] == "echo" {
+			length := len(targetParts[2])
+			connection.Write([]byte(fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", length, targetParts[2])))
+		} else if req.target == "/user-agent" {
+			length := len(req.header["user-agent"])
+			connection.Write([]byte(fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", length, req.header["user-agent"])))
+		} else if req.target == "/" {
+			connection.Write([]byte("HTTP/1.1 200 OK\r\n\r\n"))
+		} else {
 			connection.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
-			connection.Close()
 		}
-
+		connection.Close()
+	default:
+		connection.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
+		connection.Close()
 	}
 }
 
