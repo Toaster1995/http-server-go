@@ -16,7 +16,6 @@ type Request struct {
 }
 
 func main() {
-	// You can use print statements as follows for debugging, they'll be visible when running tests.
 	fmt.Println("Logs from your program will appear here!")
 
 	l, err := net.Listen("tcp", "0.0.0.0:4221")
@@ -53,6 +52,16 @@ func handleConn(connection net.Conn) {
 		if targetParts[1] == "echo" {
 			length := len(targetParts[2])
 			connection.Write([]byte(fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", length, targetParts[2])))
+		} else if targetParts[1] == "files" {
+			data, err := os.ReadFile(fmt.Sprintf("/tmp/%s", targetParts[2]))
+			fmt.Printf("file: %s", targetParts[2])
+			if err != nil {
+				connection.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
+				fmt.Printf("error reading file: %v", err)
+				return
+			}
+			length := len(data)
+			connection.Write([]byte(fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: %d\r\n\r\n%s", length, string(data))))
 		} else if req.target == "/user-agent" {
 			length := len(req.header["user-agent"])
 			connection.Write([]byte(fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", length, req.header["user-agent"])))
@@ -61,10 +70,8 @@ func handleConn(connection net.Conn) {
 		} else {
 			connection.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
 		}
-		connection.Close()
 	default:
 		connection.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
-		connection.Close()
 	}
 }
 
