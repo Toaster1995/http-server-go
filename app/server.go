@@ -18,6 +18,10 @@ type Request struct {
 func main() {
 	fmt.Println("Logs from your program will appear here!")
 
+	if len(os.Args) > 1 && os.Args[1] == "--directory" {
+		os.Mkdir(os.Args[2], 0777)
+	}
+
 	l, err := net.Listen("tcp", "0.0.0.0:4221")
 	if err != nil {
 		fmt.Println("Failed to bind to port 4221")
