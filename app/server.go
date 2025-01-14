@@ -57,7 +57,7 @@ func handleConn(connection net.Conn) {
 			length := len(targetParts[2])
 			connection.Write([]byte(fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", length, targetParts[2])))
 		} else if targetParts[1] == "files" {
-			data, err := os.ReadFile(fmt.Sprintf("/tmp/%s", targetParts[2]))
+			data, err := os.ReadFile(fmt.Sprintf("%s/%s", os.Args[2], targetParts[2]))
 			fmt.Printf("file: %s", targetParts[2])
 			if err != nil {
 				connection.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
