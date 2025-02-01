@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -17,10 +18,6 @@ type Request struct {
 
 func main() {
 	fmt.Println("Logs from your program will appear here!")
-
-	if len(os.Args) > 1 && os.Args[1] == "--directory" {
-		os.Mkdir(os.Args[2], 0777)
-	}
 
 	l, err := net.Listen("tcp", "0.0.0.0:4221")
 	if err != nil {
@@ -57,8 +54,11 @@ func handleConn(connection net.Conn) {
 			length := len(targetParts[2])
 			connection.Write([]byte(fmt.Sprintf("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: %d\r\n\r\n%s", length, targetParts[2])))
 		} else if targetParts[1] == "files" {
-			data, err := os.ReadFile(fmt.Sprintf("%s/%s", os.Args[2], targetParts[2]))
-			fmt.Printf("file: %s", targetParts[2])
+			dir := ""
+			if len(os.Args) > 1 && os.Args[1] == "--directory" {
+				dir = os.Args[2]
+			}
+			data, err := os.ReadFile(fmt.Sprintf("%s%s", dir, targetParts[2]))
 			if err != nil {
 				connection.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
 				fmt.Printf("error reading file: %v", err)
@@ -73,6 +73,25 @@ func handleConn(connection net.Conn) {
 			connection.Write([]byte("HTTP/1.1 200 OK\r\n\r\n"))
 		} else {
 			connection.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
+		}
+	case "POST":
+		targetParts := strings.Split(req.target, "/")
+		if targetParts[1] == "files" {
+			dir := ""
+			if len(os.Args) > 1 && os.Args[1] == "--directory" {
+				dir = os.Args[2]
+			}
+			if req.header["content-type"] == "application/octet-stream" {
+				contentLength, err := strconv.Atoi(req.header["content-length"])
+				if err != nil {
+					connection.Write([]byte("HTTP/1.1 400 Bad Request\r\n\r\n"))
+					return
+				}
+				fmt.Println("length ", contentLength)
+				data := req.body[:contentLength]
+				os.WriteFile(dir+targetParts[2], []byte(data), 0777)
+				connection.Write([]byte("HTTP/1.1 201 Created\r\n\r\n"))
+			}
 		}
 	default:
 		connection.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
@@ -94,8 +113,6 @@ func getRequest(conn net.Conn) (Request, error) {
 
 	fmt.Printf("reqLine: %v \n", header)
 	body := request[1]
-
-	fmt.Printf("body: %v \n", body)
 
 	headerValues := make(map[string]string)
 	for i := 0; i < len(header); i++ {
